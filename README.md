@@ -105,6 +105,6 @@ hirecheck/
 
 - **Backend**: Django 5.x + Pydantic v2
 - **Database**: PostgreSQL 16
-- **AI**: GPT-4o-mini (primary) + Gemini 1.5 Flash (fallback)
+- **AI**: Gemini 2.5 Flash (primary, free tier) + GPT-4o-mini (fallback)
 - **Extension**: JavaScript + Manifest V3
 - **CI/CD**: GitHub Actions

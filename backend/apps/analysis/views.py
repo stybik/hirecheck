@@ -16,8 +16,8 @@ def health_check(request):
             "version": "0.1.0",
             "uptime_seconds": uptime_seconds,
             "models": {
-                "primary": "gpt-4o-mini",
-                "fallback": "gemini-1.5-flash",
+                "primary": "gemini-2.5-flash",
+                "fallback": "gpt-4o-mini",
             },
         }
     )

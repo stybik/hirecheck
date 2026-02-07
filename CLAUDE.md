@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HireCheck is a Chrome extension + Django backend that detects ghost jobs, scam listings, and toxic workplace signals on Naukri.com using AI analysis (GPT-4o-mini primary, Gemini 1.5 Flash fallback). Phase 1 MVP targeting Naukri.com only.
+HireCheck is a Chrome extension + Django backend that detects ghost jobs, scam listings, and toxic workplace signals on Naukri.com using AI analysis (Gemini 2.5 Flash primary, GPT-4o-mini fallback). Phase 1 MVP targeting Naukri.com only.
 
 ## Commands
 

@@ -22,8 +22,8 @@ class TestHealthEndpoint:
         client = Client()
         response = client.get("/api/v1/health/")
         data = json.loads(response.content)
-        assert data["models"]["primary"] == "gpt-4o-mini"
-        assert data["models"]["fallback"] == "gemini-1.5-flash"
+        assert data["models"]["primary"] == "gemini-2.5-flash"
+        assert data["models"]["fallback"] == "gpt-4o-mini"
 
     def test_only_get_allowed(self, db):
         client = Client()

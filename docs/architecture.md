@@ -12,8 +12,9 @@ HireCheck is a ghost job and scam listing detector for Naukri.com, consisting of
 │ Chrome Extension │ ──────────────────────────▶│  Django Backend   │
 │   (content.js)   │                            │  /api/v1/analyze  │
 │                  │◀─────────────────────────── │                  │
-│   Shows score    │     JSON response          │  GPT-4o-mini /   │
-│   + red flags    │                            │  Gemini fallback  │
+│   Shows score    │     JSON response          │  Gemini 2.5      │
+│   + red flags    │                            │  Flash / GPT-4o  │
+│                  │                            │  mini fallback   │
 └─────────────────┘                            └──────────────────┘
                                                        │
                                                        ▼
@@ -31,7 +32,7 @@ HireCheck is a ghost job and scam listing detector for Naukri.com, consisting of
 3. Extension computes URL hash + content hash for deduplication
 4. Service worker signs the request with HMAC-SHA256
 5. Backend checks cache (URL hash → existing analysis)
-6. If miss: sends job data to GPT-4o-mini (or Gemini 1.5 Flash on failure)
+6. If miss: sends job data to Gemini 2.5 Flash (or GPT-4o-mini on failure/rate limit)
 7. AI returns per-category scores; backend computes weighted ghost_score
 8. Response cached and returned to extension
 9. Extension renders score badge, red flags, and recommendation
