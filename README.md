@@ -4,30 +4,62 @@ AI-powered Chrome extension that detects ghost jobs, scam listings, and toxic wo
 
 ## Prerequisites
 
-- Python 3.12
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- PostgreSQL 16
-- Google Chrome (for extension testing)
+- **Python 3.12** (`python3 --version` to verify)
+- **[uv](https://docs.astral.sh/uv/)** — Python package manager
+- **PostgreSQL 16** — local database
+- **Google Chrome** — for extension testing
 
 ## Quick Start
 
+### 1. Install uv (if not already installed)
+
 ```bash
-# 1. Install dependencies
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Restart your terminal, or run:
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### 2. Install PostgreSQL 16 (macOS)
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+# Add to PATH if needed:
+export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
+```
+
+### 3. Create the database and user
+
+```bash
+createuser -s hirecheck
+createdb -O hirecheck hirecheck
+```
+
+### 4. Install dependencies and configure environment
+
+```bash
 make setup
+```
 
-# 2. Edit .env with your local settings
-#    (DATABASE_URL, API keys, etc.)
+This installs all Python dependencies and copies `.env.example` to `.env` if it doesn't exist.
 
-# 3. Create the database
-createdb hirecheck
+### 5. Generate a secret key and update .env
 
-# 4. Run migrations
+```bash
+# Generate a random secret key:
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+Open `.env` and replace the placeholder values:
+- `DJANGO_SECRET_KEY` — paste the generated key
+- `HMAC_SECRET_KEY` — generate a 64-char hex string: `python3 -c "import secrets; print(secrets.token_hex(32))"`
+- `OPENAI_API_KEY` / `GEMINI_API_KEY` — add your API keys (optional for local dev)
+
+### 6. Run migrations and start the server
+
+```bash
 make migrate
-
-# 5. Create cache table (dev uses DB cache)
 make createcachetable
-
-# 6. Start the development server
 make run
 ```
 
