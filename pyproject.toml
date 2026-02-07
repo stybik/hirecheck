@@ -43,10 +43,10 @@ pythonpath = ["backend"]
 target-version = "py312"
 line-length = 120
 src = ["backend"]
+exclude = ["backend/apps/*/migrations/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "DJ"]
-exclude = ["backend/apps/*/migrations/*.py"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["apps", "config"]
