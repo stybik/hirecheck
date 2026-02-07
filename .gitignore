@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# macOS
+.DS_Store
+
+# Node (if JS tooling added later)
+node_modules/
+
+# Chrome extension build artifacts
+extension/*.zip
+extension/*.crx
+
+# Local settings
+*.local
+
+# staticfiles (Django collectstatic)
+staticfiles/
+media/

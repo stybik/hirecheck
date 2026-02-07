@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HireCheck</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>HireCheck</h1>
+      <p class="tagline">Job Listing Lie Detector</p>
+    </header>
+
+    <!-- Results section (hidden by default) -->
+    <section id="results" class="hidden">
+      <div id="score-gauge" class="score-gauge">
+        <span id="score-value">--</span>
+        <span class="score-label">Ghost Score</span>
+      </div>
+      <div id="recommendation" class="recommendation"></div>
+      <div id="red-flags" class="red-flags"></div>
+      <div id="category-scores" class="category-scores"></div>
+    </section>
+
+    <!-- Manual paste section -->
+    <section id="manual-paste">
+      <button id="toggle-paste" class="btn-secondary">
+        Paste Job Description
+      </button>
+      <div id="paste-area" class="hidden">
+        <textarea
+          id="job-description"
+          placeholder="Paste the full job description here..."
+          rows="6"
+        ></textarea>
+        <input
+          id="job-title-input"
+          type="text"
+          placeholder="Job title"
+          class="input-field"
+        >
+        <input
+          id="company-input"
+          type="text"
+          placeholder="Company name"
+          class="input-field"
+        >
+        <button id="analyze-paste" class="btn-primary">
+          Analyze
+        </button>
+      </div>
+    </section>
+
+    <!-- Loading state -->
+    <section id="loading" class="hidden">
+      <div class="spinner"></div>
+      <p>Analyzing job listing...</p>
+    </section>
+
+    <!-- Error state -->
+    <section id="error" class="hidden">
+      <p id="error-message" class="error-text"></p>
+      <button id="retry-btn" class="btn-secondary">Try Again</button>
+    </section>
+
+    <!-- Disclaimer -->
+    <footer>
+      <p class="disclaimer">
+        AI-powered estimate. Always use your own judgment.
+      </p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
