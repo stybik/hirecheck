@@ -12,7 +12,7 @@ class AnalyzedListing(models.Model):
         LIKELY_FAKE = "likely_fake", "Likely Fake"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    url_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    url_hash = models.CharField(max_length=64, unique=True)
     content_hash = models.CharField(max_length=64, db_index=True)
     platform = models.CharField(max_length=20, default="naukri")
     job_title = models.CharField(max_length=255)
@@ -27,6 +27,7 @@ class AnalyzedListing(models.Model):
         help_text="Array of {category, signal, severity, explanation}",
     )
     recommendation = models.CharField(max_length=30, choices=Recommendation.choices)
+    signals_checked = models.IntegerField(default=0, help_text="Total signals evaluated by the LLM")
     ai_model_used = models.CharField(max_length=50)
     tokens_used = models.IntegerField(default=0)
     response_ms = models.IntegerField(default=0)
@@ -77,6 +78,8 @@ class APIUsageLog(models.Model):
     ip_address = models.GenericIPAddressField()
     endpoint = models.CharField(max_length=50)
     was_cached = models.BooleanField(default=False)
+    model_used = models.CharField(max_length=50, default="")
+    tokens_used = models.IntegerField(default=0)
     response_ms = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

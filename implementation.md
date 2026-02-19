@@ -6,8 +6,9 @@
 
 ---
 
-## Current State (Week 1 — COMPLETE)
+## Current State (Week 2 — COMPLETE)
 
+### Week 1 — Foundation ✅
 | Component | Status | Details |
 |-----------|--------|---------|
 | Django project scaffold | Done | Split settings (base/dev/test/prod), django-environ, CORS |
@@ -19,14 +20,31 @@
 | Admin | Done | All 3 models registered |
 | Docs | Done | ADR-001 (no DRF), architecture, API reference, changelog |
 
+### Week 2 — AI Engine ✅
+| Component | Status | Details |
+|-----------|--------|---------|
+| Pydantic schemas | Done | `AnalyzeRequest`, `LLMResponse`, `CategoryScores`, `RedFlag` in `schemas.py` |
+| AI analysis service | Done | Gemini 2.5 Flash primary, GPT-4o-mini fallback, retry on parse failure, code-fence stripping |
+| Server-side scoring | Done | Weighted composite formula, recommendation mapping, clamping |
+| HMAC middleware | Done | Validates `X-Extension-Signature` + `X-Timestamp`, skips health endpoint |
+| POST /api/v1/analyze | Done | Rate limit → cache → AI → score → persist → respond |
+| Request validation decorator | Done | `@validate_json_body(SchemaClass)` with Pydantic v2 |
+| Utility functions | Done | URL/content hashing, rate limiting, HMAC verification |
+| Tests | Done | 73 passing — scoring (17), HMAC (11), analyzer parsing (18), endpoint integration (14), models (10), health (4) |
+
+> **PRD Deviation — AI Model Strategy**: PRD v1.1 specifies GPT-4o-mini primary / Gemini 1.5 Flash fallback.
+> We swapped to **Gemini 2.5 Flash primary** (free tier: 250 RPD, 10 RPM, no credit card) / **GPT-4o-mini fallback** ($0.15/M input).
+> Rationale: Free tier covers early users at zero cost; 24h caching + content hash dedup reduces actual API calls significantly.
+> The PRD `.docx` has not been updated to reflect this — treat this note as the authoritative model strategy.
+
 ---
 
 ## Phase Overview
 
 ```
 Week 1  ██████████  Foundation          ✅ COMPLETE
-Week 2  ░░░░░░░░░░  AI Engine           ← YOU ARE HERE
-Week 3  ░░░░░░░░░░  Content Script
+Week 2  ██████████  AI Engine           ✅ COMPLETE
+Week 3  ░░░░░░░░░░  Content Script      ← YOU ARE HERE
 Week 4  ░░░░░░░░░░  Integration
 Week 5  ░░░░░░░░░░  Polish
 Week 6  ░░░░░░░░░░  Launch Prep
@@ -379,24 +397,25 @@ hirecheck/
 │   ├── apps/
 │   │   ├── analysis/
 │   │   │   ├── models.py          ✅ Week 1
-│   │   │   ├── views.py           ⬜ Week 2 (analyze endpoint) + Week 5 (feedback)
-│   │   │   ├── urls.py            ⬜ Week 2 (add routes)
-│   │   │   ├── schemas.py         ⬜ Week 2 (Pydantic models)
+│   │   │   ├── views.py           ✅ Week 2 (analyze endpoint) + ⬜ Week 5 (feedback)
+│   │   │   ├── urls.py            ✅ Week 2 (add routes)
+│   │   │   ├── schemas.py         ✅ Week 2 (Pydantic models)
 │   │   │   ├── admin.py           ✅ Week 1
 │   │   │   ├── services/
-│   │   │   │   ├── ai_analyzer.py ⬜ Week 2
-│   │   │   │   └── scoring.py     ⬜ Week 2
+│   │   │   │   ├── ai_analyzer.py ✅ Week 2
+│   │   │   │   └── scoring.py     ✅ Week 2
 │   │   │   └── tests/
 │   │   │       ├── test_models.py ✅ Week 1
 │   │   │       ├── test_health.py ✅ Week 1
-│   │   │       ├── test_analyze.py⬜ Week 2
-│   │   │       ├── test_scoring.py⬜ Week 2
-│   │   │       ├── test_hmac.py   ⬜ Week 2
+│   │   │       ├── test_analyze.py ✅ Week 2
+│   │   │       ├── test_ai_analyzer.py ✅ Week 2
+│   │   │       ├── test_scoring.py✅ Week 2
+│   │   │       ├── test_hmac.py   ✅ Week 2
 │   │   │       └── test_feedback.py⬜ Week 5
 │   │   └── common/
-│   │       ├── middleware.py      ⬜ Week 2 (HMAC validation)
-│   │       ├── decorators.py      ⬜ Week 2 (JSON body validation)
-│   │       └── utils.py           ⬜ Week 2 (hashing, rate limit)
+│   │       ├── middleware.py      ✅ Week 2 (HMAC validation)
+│   │       ├── decorators.py      ✅ Week 2 (JSON body validation)
+│   │       └── utils.py           ✅ Week 2 (hashing, rate limit)
 │   └── config/
 │       └── settings/
 │           ├── base.py            ✅ Week 1
