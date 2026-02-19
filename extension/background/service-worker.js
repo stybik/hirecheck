@@ -6,6 +6,7 @@
 importScripts("../lib/hmac.js");
 
 const API_BASE_URL = "http://localhost:8000/api/v1";
+const FETCH_TIMEOUT_MS = 10000;
 
 /**
  * Listen for messages from content script or popup.
@@ -14,7 +15,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "analyze") {
     handleAnalyze(message.data)
       .then(sendResponse)
-      .catch((error) => sendResponse({ error: error.message }));
+      .catch((error) => sendResponse({ error: "Something went wrong. Please try again.", errorType: "unknown" }));
     return true; // Keep message channel open for async response
   }
 
@@ -28,38 +29,100 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 /**
  * Send analysis request to backend API.
+ * Returns result object on success, or { error, errorType } on failure.
+ * Never throws — all errors are returned as structured objects.
  * @param {Object} jobData - Extracted job listing data
- * @returns {Promise<Object>} Analysis result
+ * @returns {Promise<Object>}
  */
 async function handleAnalyze(jobData) {
-  const body = {
-    ...jobData,
-    device_fingerprint: await getDeviceFingerprint(),
-  };
+  try {
+    const body = {
+      ...jobData,
+      device_fingerprint: await getDeviceFingerprint(),
+    };
 
-  const { signature, timestamp } = await signRequest(body);
+    const { signature, timestamp } = await signRequest(body);
 
-  const response = await fetch(`${API_BASE_URL}/analyze/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Extension-Signature": signature,
-      "X-Timestamp": timestamp.toString(),
-    },
-    body: JSON.stringify(body),
-  });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `API error: ${response.status}`);
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/analyze/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Extension-Signature": signature,
+          "X-Timestamp": timestamp.toString(),
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === "AbortError") {
+        return { error: "Request timed out. Please try again.", errorType: "timeout" };
+      }
+      return {
+        error: "Unable to connect. Check your internet connection.",
+        errorType: "network",
+      };
+    }
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return await handleApiError(response);
+    }
+
+    const result = await response.json();
+    await saveToHistory(result, jobData);
+    return result;
+  } catch (error) {
+    console.error("HireCheck handleAnalyze error:", error);
+    return { error: "Something went wrong. Please try again.", errorType: "unknown" };
   }
+}
 
-  const result = await response.json();
+/**
+ * Map HTTP error responses to user-friendly messages with error type.
+ * @param {Response} response
+ * @returns {Promise<Object>}
+ */
+async function handleApiError(response) {
+  const errorData = await response.json().catch(() => ({}));
 
-  // Save to local history
-  await saveToHistory(result, jobData);
-
-  return result;
+  switch (response.status) {
+    case 429:
+      return {
+        error: `Daily limit reached (${errorData.analyses_today || "?"}/${errorData.daily_limit || 5}). Resets at midnight.`,
+        errorType: "rate_limit",
+        analyses_today: errorData.analyses_today,
+        daily_limit: errorData.daily_limit,
+        reset_at: errorData.reset_at,
+      };
+    case 400:
+      return {
+        error: "Invalid request. Please try again or use manual paste.",
+        errorType: "validation",
+      };
+    case 401:
+    case 403:
+      return {
+        error: "Authentication error. Please reinstall the extension.",
+        errorType: "auth",
+      };
+    case 503:
+      return {
+        error: "Analysis temporarily unavailable. Please try again in a few minutes.",
+        errorType: "unavailable",
+      };
+    default:
+      return {
+        error: errorData.message || `Unexpected error (${response.status}).`,
+        errorType: "unknown",
+      };
+  }
 }
 
 /**
@@ -87,6 +150,7 @@ async function saveToHistory(result, jobData) {
     analysis_id: result.analysis_id,
     job_title: jobData.job_title,
     company_name: jobData.company_name,
+    url: jobData.url || null,
     ghost_score: result.ghost_score,
     recommendation: result.recommendation,
     analyzed_at: result.analyzed_at,

@@ -30,7 +30,7 @@ def validate_json_body(schema_class):
                 validated = schema_class.model_validate(body)
             except ValidationError as e:
                 return JsonResponse(
-                    {"error": "Validation failed", "details": e.errors(include_url=False)},
+                    {"error": "Validation failed", "details": e.errors(include_url=False, include_context=False)},
                     status=400,
                 )
 

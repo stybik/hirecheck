@@ -218,3 +218,50 @@ class TestAnalyzeEndpoint:
         response = client.get("/api/v1/analyze/")
         # HMAC middleware rejects before view's @require_POST can respond
         assert response.status_code == 401
+
+    @override_settings(HMAC_SECRET_KEY=HMAC_SECRET, DAILY_ANALYSIS_LIMIT=5)
+    @patch("apps.analysis.views.analyze_job_listing", return_value=(MOCK_LLM_RESPONSE, "gemini-2.5-flash", 350))
+    def test_manual_paste_with_empty_url_succeeds(self, mock_ai, db):
+        """Manual paste sends empty url — should be accepted."""
+        client = Client()
+        body = _make_valid_body()
+        body["url"] = ""
+        body["source"] = "manual_paste"
+        response = _sign_and_post(client, body)
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert "ghost_score" in data
+
+    @override_settings(HMAC_SECRET_KEY=HMAC_SECRET, DAILY_ANALYSIS_LIMIT=5)
+    def test_dom_extraction_with_empty_url_returns_400(self, db):
+        """DOM extraction requires a valid url."""
+        client = Client()
+        body = _make_valid_body()
+        body["url"] = ""
+        body["source"] = "dom_extraction"
+        response = _sign_and_post(client, body)
+        assert response.status_code == 400
+
+    @override_settings(HMAC_SECRET_KEY=HMAC_SECRET, DAILY_ANALYSIS_LIMIT=5)
+    @patch("apps.analysis.views.analyze_job_listing", return_value=(MOCK_LLM_RESPONSE, "gemini-2.5-flash", 350))
+    def test_null_requirements_accepted(self, mock_ai, db):
+        """Extension may send null for requirements — backend should coerce to empty string."""
+        client = Client()
+        body = _make_valid_body()
+        body["requirements"] = None
+        response = _sign_and_post(client, body)
+        assert response.status_code == 200
+
+    @override_settings(HMAC_SECRET_KEY=HMAC_SECRET, DAILY_ANALYSIS_LIMIT=5)
+    @patch("apps.analysis.views.analyze_job_listing", return_value=(MOCK_LLM_RESPONSE, "gemini-2.5-flash", 350))
+    def test_manual_paste_dedup_via_content_hash(self, mock_ai, db):
+        """Two manual pastes with same content should return cached on second request."""
+        client = Client()
+        body = _make_valid_body()
+        body["url"] = ""
+        body["source"] = "manual_paste"
+        _sign_and_post(client, body)
+        response2 = _sign_and_post(client, body)
+        data2 = json.loads(response2.content)
+        assert data2["was_cached"] is True
+        assert mock_ai.call_count == 1

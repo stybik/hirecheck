@@ -26,13 +26,21 @@ document.addEventListener("DOMContentLoaded", () => {
       showError("Please paste a job description.");
       return;
     }
+    if (!jobTitle) {
+      showError("Please enter a job title.");
+      return;
+    }
+    if (!company) {
+      showError("Please enter the company name.");
+      return;
+    }
 
     const jobData = {
-      url: null,
-      job_title: jobTitle || "Unknown",
-      company_name: company || "Unknown",
-      description: description.substring(0, 3000),
-      requirements: null,
+      url: "",
+      job_title: jobTitle,
+      company_name: company,
+      description: description.substring(0, 12000),
+      requirements: "",
       salary_text: null,
       posting_date: null,
       source: "manual_paste",
@@ -52,6 +60,11 @@ document.addEventListener("DOMContentLoaded", () => {
  * Send analysis request via background service worker.
  */
 async function runAnalysis(jobData) {
+  const analyzePasteBtn = document.getElementById("analyze-paste");
+  if (analyzePasteBtn) {
+    analyzePasteBtn.disabled = true;
+    analyzePasteBtn.textContent = "Analyzing...";
+  }
   showLoading();
 
   try {
@@ -60,13 +73,20 @@ async function runAnalysis(jobData) {
       data: jobData,
     });
 
-    if (response.error) {
+    if (response && response.error) {
       showError(response.error);
-    } else {
+    } else if (response) {
       showResults(response);
+    } else {
+      showError("Failed to connect. Please try again.");
     }
   } catch (error) {
     showError("Failed to connect. Please try again.");
+  } finally {
+    if (analyzePasteBtn) {
+      analyzePasteBtn.disabled = false;
+      analyzePasteBtn.textContent = "Analyze";
+    }
   }
 }
 
@@ -108,7 +128,13 @@ function showResults(data) {
     data.red_flags.forEach((flag) => {
       const div = document.createElement("div");
       div.className = `red-flag-item ${flag.severity}`;
-      div.innerHTML = `<strong>${flag.signal}</strong><br><small>${flag.explanation}</small>`;
+      const strong = document.createElement("strong");
+      strong.textContent = flag.signal;
+      div.appendChild(strong);
+      div.appendChild(document.createElement("br"));
+      const small = document.createElement("small");
+      small.textContent = flag.explanation;
+      div.appendChild(small);
       flagsEl.appendChild(div);
     });
   }
@@ -126,9 +152,24 @@ function showResults(data) {
     Object.entries(data.category_scores).forEach(([key, value]) => {
       const div = document.createElement("div");
       div.className = "category-item";
-      div.innerHTML = `<div class="label">${labels[key] || key}</div><div class="value">${value}</div>`;
+      const labelDiv = document.createElement("div");
+      labelDiv.className = "label";
+      labelDiv.textContent = labels[key] || key;
+      div.appendChild(labelDiv);
+      const valueDiv = document.createElement("div");
+      valueDiv.className = "value";
+      valueDiv.textContent = value;
+      div.appendChild(valueDiv);
       catEl.appendChild(div);
     });
+  }
+
+  // Show remaining analyses
+  const usageEl = document.getElementById("usage-info");
+  if (usageEl && data.analyses_today !== undefined && data.daily_limit !== undefined) {
+    const remaining = data.daily_limit - data.analyses_today;
+    usageEl.textContent = `${remaining} of ${data.daily_limit} free analyses remaining today`;
+    usageEl.classList.remove("hidden");
   }
 
   // Show manual paste toggle again

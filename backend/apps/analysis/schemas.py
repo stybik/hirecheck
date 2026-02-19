@@ -8,21 +8,30 @@ These replace DRF serializers. Used for:
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AnalyzeRequest(BaseModel):
     """Validates incoming POST /api/v1/analyze/ body from extension."""
 
-    url: str = Field(min_length=1)
+    url: str = ""
     job_title: str = Field(min_length=1, max_length=255)
     company_name: str = Field(min_length=1, max_length=255)
     description: str = Field(min_length=1, max_length=12000)
-    requirements: str = ""
+    requirements: str | None = None
     salary_text: str | None = None
     posting_date: str | None = None
     source: Literal["dom_extraction", "manual_paste"]
     device_fingerprint: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_url_and_coerce_requirements(self):
+        """Require url for dom_extraction; coerce None requirements to empty string."""
+        if self.source == "dom_extraction" and not self.url:
+            raise ValueError("url is required for dom_extraction source")
+        if self.requirements is None:
+            self.requirements = ""
+        return self
 
 
 class CategoryScores(BaseModel):

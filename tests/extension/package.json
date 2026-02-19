@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Test dependencies for HireCheck Chrome extension tests",
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

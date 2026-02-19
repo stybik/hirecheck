@@ -59,3 +59,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate manifest.json
         run: python3 -c "import json; json.load(open('extension/manifest.json')); print('manifest.json is valid')"
+
+  extension-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test dependencies
+        working-directory: tests/extension
+        run: npm install
+      - name: Run extension DOM extraction tests
+        run: node --test tests/extension/*.test.js

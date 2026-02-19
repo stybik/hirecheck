@@ -1,118 +1,171 @@
 /**
  * Content script for HireCheck extension.
  * Injects the "Analyze This Job" floating button on Naukri job detail pages.
+ * Handles SPA navigation (Naukri is a React app — URL changes without page reload).
+ *
+ * Depends on: extractors.js (loaded first via manifest content_scripts array).
  */
 
 (function () {
-  // Guard: only run on job detail pages
-  if (!window.location.href.includes("naukri.com/job-listings")) {
-    return;
+  "use strict";
+
+  const BUTTON_ID = "hirecheck-analyze-btn";
+  const NAV_POLL_INTERVAL_MS = 1000;
+  const DOM_SETTLE_TIMEOUT_MS = 5000;
+
+  let currentUrl = "";
+  let analysisInFlight = false;
+
+  // --- Initialization ---
+  init();
+
+  function init() {
+    onUrlChange();
+    startNavigationWatcher();
   }
 
-  // Guard: don't inject twice
-  if (document.getElementById("hirecheck-analyze-btn")) {
-    return;
+  /**
+   * Poll for URL changes every second to detect SPA navigation.
+   * pushState/replaceState don't fire any events we can listen to,
+   * so polling is the simplest reliable approach.
+   */
+  function startNavigationWatcher() {
+    setInterval(() => {
+      if (window.location.href !== currentUrl) {
+        onUrlChange();
+      }
+    }, NAV_POLL_INTERVAL_MS);
   }
 
-  // Create floating analyze button
-  const button = document.createElement("button");
-  button.id = "hirecheck-analyze-btn";
-  button.textContent = "Analyze This Job";
-  button.addEventListener("click", handleAnalyzeClick);
+  /**
+   * Called on initial load and every SPA navigation.
+   * Cleans up stale elements, checks if this is a job page, waits for DOM, then injects.
+   */
+  function onUrlChange() {
+    currentUrl = window.location.href;
+    removeExistingButton();
 
-  document.body.appendChild(button);
+    if (!hirecheck_isJobDetailPage()) return;
+
+    // Wait for the job title element to appear (React may still be rendering)
+    waitForElement(HIRECHECK_SELECTORS.job_title[0], DOM_SETTLE_TIMEOUT_MS)
+      .then(() => injectButton())
+      .catch(() => {
+        // Primary selector didn't appear — inject anyway (fallback selectors may work)
+        injectButton();
+      });
+  }
+
+  /**
+   * Wait for a CSS selector to match an element in the DOM.
+   * Uses MutationObserver for efficiency (no polling).
+   * @param {string} selector
+   * @param {number} timeout
+   * @returns {Promise<Element>}
+   */
+  function waitForElement(selector, timeout) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(selector);
+      if (existing) return resolve(existing);
+
+      const observer = new MutationObserver(() => {
+        const el = document.querySelector(selector);
+        if (el) {
+          observer.disconnect();
+          resolve(el);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      setTimeout(() => {
+        observer.disconnect();
+        reject(new Error("Timeout waiting for element"));
+      }, timeout);
+    });
+  }
+
+  function removeExistingButton() {
+    const existing = document.getElementById(BUTTON_ID);
+    if (existing) existing.remove();
+  }
+
+  function injectButton() {
+    // Don't inject twice (race condition guard)
+    if (document.getElementById(BUTTON_ID)) return;
+
+    const button = document.createElement("button");
+    button.id = BUTTON_ID;
+    button.textContent = "Analyze This Job";
+    button.addEventListener("click", handleAnalyzeClick);
+    document.body.appendChild(button);
+  }
 
   /**
    * Handle analyze button click.
-   * Extracts job data from the page and sends to background worker.
+   * Extracts job data, validates critical fields, sends to background worker.
    */
   async function handleAnalyzeClick() {
+    if (analysisInFlight) return;
+    analysisInFlight = true;
+
+    const button = document.getElementById(BUTTON_ID);
+    if (!button) {
+      analysisInFlight = false;
+      return;
+    }
+
     button.textContent = "Analyzing...";
     button.disabled = true;
+    button.style.backgroundColor = ""; // Reset to default CSS
 
     try {
-      const jobData = extractJobData();
+      const extraction = hirecheck_extractJobData();
+
+      if (!extraction.success) {
+        button.textContent = "Can't read page — Use Popup";
+        button.style.backgroundColor = "#94a3b8";
+        button.disabled = false;
+        analysisInFlight = false;
+        return;
+      }
 
       const response = await chrome.runtime.sendMessage({
         action: "analyze",
-        data: jobData,
+        data: extraction.data,
       });
 
-      if (response.error) {
-        button.textContent = "Error - Try Again";
-        console.error("HireCheck analysis error:", response.error);
+      if (response && response.error) {
+        button.textContent = "Error — Try Again";
+        button.style.backgroundColor = "#94a3b8";
+        console.error("HireCheck:", response.error);
+      } else if (response) {
+        updateButtonWithResult(button, response.ghost_score);
       } else {
-        button.textContent = `Score: ${response.ghost_score}/100`;
-        // Popup will show detailed results
+        button.textContent = "Error — Try Again";
+        button.style.backgroundColor = "#94a3b8";
       }
     } catch (error) {
-      button.textContent = "Error - Try Again";
+      button.textContent = "Error — Try Again";
+      button.style.backgroundColor = "#94a3b8";
       console.error("HireCheck error:", error);
     }
 
     button.disabled = false;
+    analysisInFlight = false;
   }
 
   /**
-   * Extract job listing data from the Naukri page DOM.
-   * Uses 3-tier selector strategy from PRD Section 8.
+   * Update button text and color based on ghost score.
+   * Green (0-30), amber (31-60), red (61-100).
    */
-  function extractJobData() {
-    return {
-      url: window.location.href,
-      job_title: extractText([
-        ".styles_jd-header-title__rZwM1",
-        ".jd-header-title",
-        '[class*="jd-header-title"]',
-        "h1",
-      ]),
-      company_name: extractText([
-        ".styles_jd-header-comp-name__MvqAI",
-        ".jd-header-comp-name",
-        '[class*="comp-name"]',
-      ]),
-      description: extractText(
-        [
-          ".styles_JDC__dang-inner-html__h0K4t",
-          ".job-desc",
-          '[class*="job-desc"]',
-        ],
-        3000
-      ),
-      requirements: extractText([
-        '[class*="key-skill"]',
-        '[class*="skills"]',
-      ]),
-      salary_text: extractText([
-        ".styles_jhc__salary__jdfEC",
-        '[class*="salary"]',
-        ".salary",
-      ]),
-      posting_date: extractText([
-        ".styles_jhc__jd-stats__KrNRZ",
-        '[class*="jd-stats"]',
-      ]),
-      source: "dom_extraction",
-    };
-  }
-
-  /**
-   * Try multiple selectors in order, return first match text content.
-   * @param {string[]} selectors - CSS selectors to try in priority order
-   * @param {number} maxLength - Optional max character length for truncation
-   * @returns {string|null}
-   */
-  function extractText(selectors, maxLength = null) {
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        let text = element.textContent.trim();
-        if (maxLength && text.length > maxLength) {
-          text = text.substring(0, maxLength);
-        }
-        return text || null;
-      }
+  function updateButtonWithResult(button, score) {
+    button.textContent = `Ghost Score: ${score}/100`;
+    if (score <= 30) {
+      button.style.backgroundColor = "#16a34a"; // green
+    } else if (score <= 60) {
+      button.style.backgroundColor = "#ca8a04"; // amber
+    } else {
+      button.style.backgroundColor = "#dc2626"; // red
     }
-    return null;
   }
 })();
