@@ -17,19 +17,21 @@ from apps.analysis.services.ai_analyzer import (
 )
 
 # Valid LLM JSON that passes Pydantic validation
-VALID_LLM_JSON = json.dumps({
-    "category_scores": {"ghost_signals": 70, "scam_signals": 50, "toxic_culture": 40, "market_reality": 60},
-    "red_flags": [
-        {
-            "category": "ghost_signals",
-            "signal": "Posting is 90 days old",
-            "severity": "high",
-            "explanation": "Jobs open this long are often ghost jobs.",
-        }
-    ],
-    "recommendation": "apply_with_caution",
-    "signals_checked": 12,
-})
+VALID_LLM_JSON = json.dumps(
+    {
+        "category_scores": {"ghost_signals": 70, "scam_signals": 50, "toxic_culture": 40, "market_reality": 60},
+        "red_flags": [
+            {
+                "category": "ghost_signals",
+                "signal": "Posting is 90 days old",
+                "severity": "high",
+                "explanation": "Jobs open this long are often ghost jobs.",
+            }
+        ],
+        "recommendation": "apply_with_caution",
+        "signals_checked": 12,
+    }
+)
 
 
 class TestStripCodeFences:
@@ -83,21 +85,30 @@ class TestParseLlmResponse:
             _parse_llm_response('{"wrong_field": 42}')
 
     def test_missing_required_field_raises(self):
-        incomplete = json.dumps({
-            "category_scores": {"ghost_signals": 70, "scam_signals": 50, "toxic_culture": 40, "market_reality": 60},
-            "red_flags": [],
-            # missing recommendation and signals_checked
-        })
+        incomplete = json.dumps(
+            {
+                "category_scores": {"ghost_signals": 70, "scam_signals": 50, "toxic_culture": 40, "market_reality": 60},
+                "red_flags": [],
+                # missing recommendation and signals_checked
+            }
+        )
         with pytest.raises(ValidationError):
             _parse_llm_response(incomplete)
 
     def test_category_score_out_of_range_raises(self):
-        bad_scores = json.dumps({
-            "category_scores": {"ghost_signals": 150, "scam_signals": 50, "toxic_culture": 40, "market_reality": 60},
-            "red_flags": [],
-            "recommendation": "apply_confidently",
-            "signals_checked": 5,
-        })
+        bad_scores = json.dumps(
+            {
+                "category_scores": {
+                    "ghost_signals": 150,
+                    "scam_signals": 50,
+                    "toxic_culture": 40,
+                    "market_reality": 60,
+                },
+                "red_flags": [],
+                "recommendation": "apply_confidently",
+                "signals_checked": 5,
+            }
+        )
         with pytest.raises(ValidationError):
             _parse_llm_response(bad_scores)
 

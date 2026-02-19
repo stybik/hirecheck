@@ -77,8 +77,12 @@ def analyze(request):
     if cached_listing is not None:
         response_ms = int((time.time() - t_start) * 1000)
         _log_request(
-            data.device_fingerprint, ip_address, was_cached=True,
-            response_ms=response_ms, model_used=cached_listing.ai_model_used, tokens_used=0,
+            data.device_fingerprint,
+            ip_address,
+            was_cached=True,
+            response_ms=response_ms,
+            model_used=cached_listing.ai_model_used,
+            tokens_used=0,
         )
         return JsonResponse(_format_response(cached_listing, was_cached=True, count_today=count_today))
 
@@ -129,8 +133,12 @@ def analyze(request):
                 status=503,
             )
         _log_request(
-            data.device_fingerprint, ip_address, was_cached=True,
-            response_ms=response_ms, model_used=model_used, tokens_used=tokens_used,
+            data.device_fingerprint,
+            ip_address,
+            was_cached=True,
+            response_ms=response_ms,
+            model_used=model_used,
+            tokens_used=tokens_used,
         )
         return JsonResponse(_format_response(listing, was_cached=True, count_today=count_today))
 
@@ -139,8 +147,12 @@ def analyze(request):
 
     # 7. Log usage
     _log_request(
-        data.device_fingerprint, ip_address, was_cached=False,
-        response_ms=response_ms, model_used=model_used, tokens_used=tokens_used,
+        data.device_fingerprint,
+        ip_address,
+        was_cached=False,
+        response_ms=response_ms,
+        model_used=model_used,
+        tokens_used=tokens_used,
     )
 
     return JsonResponse(_format_response(listing, was_cached=False, count_today=count_today + 1))
@@ -209,8 +221,12 @@ def _format_response(listing: AnalyzedListing, was_cached: bool, count_today: in
 
 
 def _log_request(
-    device_hash: str, ip_address: str, was_cached: bool,
-    response_ms: int, model_used: str = "", tokens_used: int = 0,
+    device_hash: str,
+    ip_address: str,
+    was_cached: bool,
+    response_ms: int,
+    model_used: str = "",
+    tokens_used: int = 0,
 ) -> None:
     """Insert APIUsageLog row. Best-effort — never let logging crash the response."""
     try:

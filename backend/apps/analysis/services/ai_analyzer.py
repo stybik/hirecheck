@@ -162,8 +162,7 @@ def _try_provider(call_fn, user_prompt: str, provider_name: str) -> tuple[LLMRes
         raw_text, tokens = call_fn(
             user_prompt,
             retry_prompt=(
-                "Your previous response was not valid JSON. "
-                "Return ONLY a valid JSON object with no additional text."
+                "Your previous response was not valid JSON. Return ONLY a valid JSON object with no additional text."
             ),
         )
         total_tokens += tokens
