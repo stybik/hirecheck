@@ -71,7 +71,7 @@ def analyze(request):
 
     # 2. Dual-layer cache / DB lookup
     content_hash = compute_content_hash(data.job_title, data.company_name, data.description)
-    url_hash = compute_url_hash(data.url) if data.url else f"manual:{content_hash}"
+    url_hash = compute_url_hash(data.url) if data.url else compute_url_hash(f"manual:{content_hash}")
 
     cached_listing = _lookup_cached(url_hash, content_hash)
     if cached_listing is not None:
