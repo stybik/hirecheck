@@ -6,7 +6,7 @@
 
 ---
 
-## Current State (Week 2 — COMPLETE)
+## Current State (Week 4 — IN PROGRESS)
 
 ### Week 1 — Foundation ✅
 | Component | Status | Details |
@@ -32,6 +32,30 @@
 | Utility functions | Done | URL/content hashing, rate limiting, HMAC verification |
 | Tests | Done | 73 passing — scoring (17), HMAC (11), analyzer parsing (18), endpoint integration (14), models (10), health (4) |
 
+### Week 3 — Content Script ✅
+| Component | Status | Details |
+|-----------|--------|---------|
+| DOM extraction hardening | Done | 3-tier CSS selectors + regex fallbacks for all 6 data points |
+| Extractors split | Done | `extractors.js` (pure, testable) + `content.js` (UI logic) |
+| SPA navigation | Done | URL polling every 1s, MutationObserver for DOM settle |
+| Graceful degradation | Done | "Can't read page — Use Popup" on extraction failure |
+| Service worker | Done | 10s fetch timeout, differentiated error types, history (last 50) |
+| Popup manual paste | Done | Full paste flow with source="manual_paste" |
+| Tests | Done | 37 passing — 24 DOM extraction + 13 error handling |
+
+### Week 4 — Integration (In Progress)
+| Component | Status | Details |
+|-----------|--------|---------|
+| Popup "Analyze This Page" flow | Done | Tab detection → extractData message → runAnalysis |
+| Result persistence per URL | Done | `storeLastResult()` in service-worker, `last_result_{hash}` in storage.local |
+| Rate limit UI | Done | Dedicated `#rate-limit` section with reset time, `showRateLimit()` |
+| Category score progress bars | Done | Flex-row bars with color coding (green/amber/red) |
+| Signals checked display | Done | `signals-meta` paragraph below recommendation |
+| Cached badge | Done | `[Cached]` badge on score gauge when `was_cached === true` |
+| hideAllSections expanded | Done | Now includes analyze-page-section and rate-limit |
+| popup-flow.test.js | Done | 26 tests covering rendering, routing, content.js listener |
+| Manual QA on Naukri | Pending | Real-device testing with live listings |
+
 > **PRD Deviation — AI Model Strategy**: PRD v1.1 specifies GPT-4o-mini primary / Gemini 1.5 Flash fallback.
 > We swapped to **Gemini 2.5 Flash primary** (free tier: 250 RPD, 10 RPM, no credit card) / **GPT-4o-mini fallback** ($0.15/M input).
 > Rationale: Free tier covers early users at zero cost; 24h caching + content hash dedup reduces actual API calls significantly.
@@ -44,8 +68,8 @@
 ```
 Week 1  ██████████  Foundation          ✅ COMPLETE
 Week 2  ██████████  AI Engine           ✅ COMPLETE
-Week 3  ░░░░░░░░░░  Content Script      ← YOU ARE HERE
-Week 4  ░░░░░░░░░░  Integration
+Week 3  ██████████  Content Script      ✅ COMPLETE
+Week 4  ▓▓░░░░░░░░  Integration         ← YOU ARE HERE (in progress)
 Week 5  ░░░░░░░░░░  Polish
 Week 6  ░░░░░░░░░░  Launch Prep
 ```

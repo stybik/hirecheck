@@ -17,12 +17,34 @@
     <section id="results" class="hidden">
       <div id="score-gauge" class="score-gauge">
         <span id="score-value">--</span>
+        <span id="cached-badge" class="cached-badge hidden">Cached</span>
         <span class="score-label">Ghost Score</span>
       </div>
       <div id="recommendation" class="recommendation"></div>
+      <p id="signals-meta" class="signals-meta hidden"></p>
       <div id="red-flags" class="red-flags"></div>
       <div id="category-scores" class="category-scores"></div>
       <p id="usage-info" class="usage-info hidden"></p>
+    </section>
+
+    <!-- Analyze current Naukri page (shown when on a job listing) -->
+    <section id="analyze-page-section" class="hidden">
+      <button id="analyze-page-btn" class="btn-primary">
+        Analyze This Job
+      </button>
+      <p class="page-hint">Detected a Naukri job listing</p>
+    </section>
+
+    <!-- Rate limit section (shown on 429 response) -->
+    <section id="rate-limit" class="hidden">
+      <div class="rate-limit-card">
+        <strong>Daily limit reached</strong>
+        <p id="rate-limit-msg">You've used all 5 free analyses today.</p>
+        <p id="rate-limit-reset" class="reset-time"></p>
+        <a id="upgrade-cta" class="btn-upgrade" href="https://hirecheck.in/pro" target="_blank" rel="noopener noreferrer">
+          Get More Analyses &rarr;
+        </a>
+      </div>
     </section>
 
     <!-- Manual paste section -->

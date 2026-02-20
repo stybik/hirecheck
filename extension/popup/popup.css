@@ -40,6 +40,7 @@ header h1 {
   text-align: center;
   padding: 16px;
   margin-bottom: 12px;
+  position: relative;
 }
 
 #score-value {
@@ -55,6 +56,26 @@ header h1 {
   letter-spacing: 0.5px;
 }
 
+.cached-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #64748b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Signals meta line */
+.signals-meta {
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
 /* Recommendation badge */
 .recommendation {
   text-align: center;
@@ -62,7 +83,7 @@ header h1 {
   border-radius: 8px;
   font-weight: 600;
   font-size: 13px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .recommendation.green {
@@ -102,29 +123,105 @@ header h1 {
   border-left-color: #3b82f6;
 }
 
-/* Category scores */
+/* Category scores — bar chart layout */
 .category-scores {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
   margin-bottom: 12px;
 }
 
 .category-item {
-  padding: 8px;
-  background: #f8fafc;
-  border-radius: 6px;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-.category-item .label {
+.cat-label {
+  width: 90px;
+  font-size: 11px;
   color: #64748b;
+  flex-shrink: 0;
+}
+
+.cat-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cat-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: #1a73e8;
+  transition: width 0.3s ease;
+}
+
+.cat-value {
+  width: 28px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Analyze current page section */
+#analyze-page-section {
+  margin-bottom: 10px;
+}
+
+.page-hint {
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+/* Rate limit section */
+#rate-limit {
+  margin-bottom: 12px;
+}
+
+.rate-limit-card {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.rate-limit-card strong {
+  display: block;
+  font-size: 14px;
+  color: #c2410c;
   margin-bottom: 4px;
 }
 
-.category-item .value {
-  font-weight: 700;
-  font-size: 16px;
+.rate-limit-card p {
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 2px;
+}
+
+.reset-time {
+  font-size: 11px;
+  color: #94a3b8 !important;
+}
+
+.btn-upgrade {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: #c2410c;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn-upgrade:hover {
+  background: #9a3412;
 }
 
 /* Manual paste */

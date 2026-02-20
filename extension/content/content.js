@@ -18,10 +18,24 @@
 
   // --- Initialization ---
   init();
+  registerMessageListener();
 
   function init() {
     onUrlChange();
     startNavigationWatcher();
+  }
+
+  /**
+   * Listen for messages from the popup.
+   * Responds to extractData requests with the current page's job data.
+   */
+  function registerMessageListener() {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === "extractData") {
+        sendResponse(hirecheck_extractJobData());
+        return false; // synchronous response
+      }
+    });
   }
 
   /**

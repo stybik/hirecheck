@@ -77,6 +77,7 @@ async function handleAnalyze(jobData) {
 
     const result = await response.json();
     await saveToHistory(result, jobData);
+    await storeLastResult(result, jobData);
     return result;
   } catch (error) {
     console.error("HireCheck handleAnalyze error:", error);
@@ -162,6 +163,22 @@ async function saveToHistory(result, jobData) {
   }
 
   await chrome.storage.local.set({ history });
+}
+
+/**
+ * Store the most recent analysis result keyed by URL hash.
+ * Enables the popup to display a fresh result immediately on open.
+ * Skips storage when URL is empty (manual paste with no URL).
+ * @param {Object} result - API response
+ * @param {Object} jobData - Submitted job data (must have .url)
+ */
+async function storeLastResult(result, jobData) {
+  if (!jobData.url) return;
+  const urlNorm = jobData.url.toLowerCase().replace(/\/+$/, "");
+  const urlHash = await sha256(urlNorm);
+  await chrome.storage.local.set({
+    [`last_result_${urlHash}`]: { result, timestamp: Date.now() },
+  });
 }
 
 /**
