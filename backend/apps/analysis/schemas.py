@@ -34,6 +34,14 @@ class AnalyzeRequest(BaseModel):
         return self
 
 
+class FeedbackRequest(BaseModel):
+    """Validates incoming POST /api/v1/feedback/ body from extension."""
+
+    analysis_id: str = Field(min_length=1, max_length=36)
+    feedback_type: Literal["confirmed_real", "confirmed_fake"]
+    device_fingerprint: str = Field(min_length=1)
+
+
 class CategoryScores(BaseModel):
     """Per-category scores from LLM (each 0-100, independent)."""
 

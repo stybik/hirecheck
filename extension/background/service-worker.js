@@ -19,6 +19,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
 
+  if (message.action === "submitFeedback") {
+    handleSubmitFeedback(message.data)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ error: "Failed to submit feedback.", errorType: "unknown" }));
+    return true;
+  }
+
   if (message.action === "getHistory") {
     getHistory()
       .then(sendResponse)
@@ -82,6 +89,60 @@ async function handleAnalyze(jobData) {
   } catch (error) {
     console.error("HireCheck handleAnalyze error:", error);
     return { error: "Something went wrong. Please try again.", errorType: "unknown" };
+  }
+}
+
+/**
+ * Submit user feedback on analysis accuracy.
+ * @param {Object} feedbackData - { analysis_id, feedback_type }
+ * @returns {Promise<Object>}
+ */
+async function handleSubmitFeedback(feedbackData) {
+  try {
+    const body = {
+      analysis_id: feedbackData.analysis_id,
+      feedback_type: feedbackData.feedback_type,
+      device_fingerprint: await getDeviceFingerprint(),
+    };
+
+    const { signature, timestamp } = await signRequest(body);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+    let response;
+    try {
+      response = await fetch(`${API_BASE_URL}/feedback/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Extension-Signature": signature,
+          "X-Timestamp": timestamp.toString(),
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      return { error: "Unable to submit feedback. Check your connection.", errorType: "network" };
+    }
+
+    clearTimeout(timeoutId);
+
+    const result = await response.json().catch(() => ({}));
+
+    if (response.status === 409) {
+      return { success: true, message: "Feedback already recorded." };
+    }
+
+    if (!response.ok) {
+      return { error: result.message || "Failed to submit feedback.", errorType: "unknown" };
+    }
+
+    return { success: true, ...result };
+  } catch (error) {
+    console.error("HireCheck handleSubmitFeedback error:", error);
+    return { error: "Failed to submit feedback.", errorType: "unknown" };
   }
 }
 

@@ -11,7 +11,18 @@
     <header>
       <h1>HireCheck</h1>
       <p class="tagline">Job Listing Lie Detector</p>
+      <button id="toggle-history" class="btn-history-toggle" title="History">&#128339;</button>
     </header>
+
+    <!-- History section (hidden by default) -->
+    <section id="history-section" class="hidden">
+      <div class="history-header">
+        <h2>Analysis History</h2>
+        <button id="clear-history" class="btn-clear-history">Clear All</button>
+      </div>
+      <div id="history-list" class="history-list"></div>
+      <button id="back-from-history" class="btn-secondary">Back</button>
+    </section>
 
     <!-- Results section (hidden by default) -->
     <section id="results" class="hidden">
@@ -25,6 +36,14 @@
       <div id="red-flags" class="red-flags"></div>
       <div id="category-scores" class="category-scores"></div>
       <p id="usage-info" class="usage-info hidden"></p>
+      <div id="feedback-section" class="feedback-section hidden">
+        <p class="feedback-prompt">Was this analysis accurate?</p>
+        <div class="feedback-buttons">
+          <button id="feedback-real" class="btn-feedback btn-feedback-real" data-type="confirmed_real">Actually Real</button>
+          <button id="feedback-fake" class="btn-feedback btn-feedback-fake" data-type="confirmed_fake">Confirmed Suspicious</button>
+        </div>
+        <p id="feedback-toast" class="feedback-toast hidden"></p>
+      </div>
     </section>
 
     <!-- Analyze current Naukri page (shown when on a job listing) -->
@@ -76,10 +95,13 @@
       </div>
     </section>
 
-    <!-- Loading state -->
+    <!-- Loading state (skeleton) -->
     <section id="loading" class="hidden">
-      <div class="spinner"></div>
-      <p>Analyzing job listing...</p>
+      <div class="skeleton-score"></div>
+      <div class="skeleton-line" style="width:60%"></div>
+      <div class="skeleton-line" style="width:90%"></div>
+      <div class="skeleton-line" style="width:70%"></div>
+      <p class="skeleton-text">Analyzing job listing...</p>
     </section>
 
     <!-- Error state -->
@@ -92,6 +114,9 @@
     <footer>
       <p class="disclaimer">
         AI-powered estimate. Always use your own judgment.
+      </p>
+      <p class="footer-link">
+        <a href="https://hirecheck.in/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
       </p>
     </footer>
   </div>

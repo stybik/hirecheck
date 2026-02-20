@@ -43,6 +43,11 @@ const MOCK_RESULT = {
   analyzed_at: "2026-02-20T10:30:00Z",
 };
 
+const MOCK_RESULT_WITH_ID = {
+  ...MOCK_RESULT,
+  analysis_id: "test-uuid-1234",
+};
+
 const MOCK_JOB_DATA = {
   url: "",
   job_title: "Test Job",
@@ -333,16 +338,17 @@ describe("showLoading()", () => {
 });
 
 describe("hideAllSections()", () => {
-  it("hides all sections including rate-limit and analyze-page-section", () => {
+  it("hides all sections including rate-limit, analyze-page-section, and history-section", () => {
     const { window, document } = buildPopupContext();
     // Show several sections first
     document.getElementById("results").classList.remove("hidden");
     document.getElementById("rate-limit").classList.remove("hidden");
     document.getElementById("analyze-page-section").classList.remove("hidden");
+    document.getElementById("history-section").classList.remove("hidden");
 
     window.hideAllSections();
 
-    for (const id of ["results", "loading", "error", "manual-paste", "analyze-page-section", "rate-limit"]) {
+    for (const id of ["results", "loading", "error", "manual-paste", "analyze-page-section", "rate-limit", "history-section"]) {
       assert.ok(document.getElementById(id).classList.contains("hidden"), `${id} should be hidden`);
     }
   });
@@ -548,6 +554,302 @@ describe("analyzePageBtn — click sends extractData to content script", () => {
     assert.ok(capturedTabMessage !== null, "sendMessage to tab should have been called");
     assert.strictEqual(capturedTabMessage.tabId, 42, "should target the correct tab");
     assert.strictEqual(capturedTabMessage.msg.action, "extractData", "message action should be extractData");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// content.js extractData message listener
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Feedback UI
+// ---------------------------------------------------------------------------
+
+describe("showResults() — feedback section", () => {
+  it("shows feedback-section when showResults has analysis_id", () => {
+    const { window, document } = buildPopupContext();
+    window.showResults(MOCK_RESULT_WITH_ID);
+    assert.ok(
+      !document.getElementById("feedback-section").classList.contains("hidden"),
+      "feedback-section should be visible"
+    );
+  });
+
+  it("hides feedback-section when showResults has no analysis_id", () => {
+    const { window, document } = buildPopupContext();
+    window.showResults({ ...MOCK_RESULT }); // no analysis_id
+    assert.ok(
+      document.getElementById("feedback-section").classList.contains("hidden"),
+      "feedback-section should be hidden"
+    );
+  });
+
+  it("disables both buttons on feedback click", async () => {
+    const { window, document } = buildPopupContext({
+      sendMessage: async (msg) => {
+        if (msg.action === "submitFeedback") return { success: true };
+        return MOCK_RESULT_WITH_ID;
+      },
+    });
+
+    window.showResults(MOCK_RESULT_WITH_ID);
+
+    // Fire DOMContentLoaded to register click handlers
+    document.dispatchEvent(new (document.defaultView.Event)("DOMContentLoaded"));
+
+    const realBtn = document.getElementById("feedback-real");
+    realBtn.dispatchEvent(new (document.defaultView.Event)("click"));
+
+    // Allow async handler to run
+    await new Promise((r) => setTimeout(r, 50));
+
+    assert.ok(realBtn.disabled, "clicked button should be disabled");
+    assert.ok(document.getElementById("feedback-fake").disabled, "other button should be disabled");
+  });
+
+  it("adds selected class to clicked button", async () => {
+    const { window, document } = buildPopupContext({
+      sendMessage: async (msg) => {
+        if (msg.action === "submitFeedback") return { success: true };
+        return MOCK_RESULT_WITH_ID;
+      },
+    });
+
+    window.showResults(MOCK_RESULT_WITH_ID);
+    document.dispatchEvent(new (document.defaultView.Event)("DOMContentLoaded"));
+
+    const fakeBtn = document.getElementById("feedback-fake");
+    fakeBtn.dispatchEvent(new (document.defaultView.Event)("click"));
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    assert.ok(fakeBtn.classList.contains("selected"), "clicked button should have selected class");
+  });
+
+  it("sends submitFeedback message with correct data", async () => {
+    let capturedMessage = null;
+    const { window, document } = buildPopupContext({
+      sendMessage: async (msg) => {
+        capturedMessage = msg;
+        if (msg.action === "submitFeedback") return { success: true };
+        return MOCK_RESULT_WITH_ID;
+      },
+    });
+
+    window.showResults(MOCK_RESULT_WITH_ID);
+    document.dispatchEvent(new (document.defaultView.Event)("DOMContentLoaded"));
+
+    const realBtn = document.getElementById("feedback-real");
+    realBtn.dispatchEvent(new (document.defaultView.Event)("click"));
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    assert.ok(capturedMessage !== null, "sendMessage should have been called");
+    assert.strictEqual(capturedMessage.action, "submitFeedback");
+    assert.strictEqual(capturedMessage.data.analysis_id, "test-uuid-1234");
+    assert.strictEqual(capturedMessage.data.feedback_type, "confirmed_real");
+  });
+
+  it("shows success toast on successful feedback", async () => {
+    const { window, document } = buildPopupContext({
+      sendMessage: async (msg) => {
+        if (msg.action === "submitFeedback") return { success: true };
+        return MOCK_RESULT_WITH_ID;
+      },
+    });
+
+    window.showResults(MOCK_RESULT_WITH_ID);
+    document.dispatchEvent(new (document.defaultView.Event)("DOMContentLoaded"));
+
+    const realBtn = document.getElementById("feedback-real");
+    realBtn.dispatchEvent(new (document.defaultView.Event)("click"));
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const toast = document.getElementById("feedback-toast");
+    assert.ok(!toast.classList.contains("hidden"), "toast should be visible");
+    assert.ok(toast.classList.contains("success"), "toast should have success class");
+    assert.ok(toast.textContent.includes("Thank you"), "toast should contain thank you message");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// History UI
+// ---------------------------------------------------------------------------
+
+const MOCK_HISTORY = [
+  {
+    analysis_id: "id-1",
+    job_title: "Software Engineer",
+    company_name: "Acme Corp",
+    url: "https://www.naukri.com/job/1",
+    ghost_score: 25,
+    recommendation: "apply_confidently",
+    analyzed_at: "2026-02-20T10:00:00Z",
+  },
+  {
+    analysis_id: "id-2",
+    job_title: "Data Scientist",
+    company_name: "BigCo",
+    url: "",
+    ghost_score: 75,
+    recommendation: "likely_fake",
+    analyzed_at: "2026-02-19T14:00:00Z",
+  },
+];
+
+/**
+ * Build a popup context with custom history for showHistory() tests.
+ */
+function buildPopupContextWithHistory(history = []) {
+  const dom = new JSDOM(POPUP_HTML, { runScripts: "outside-only" });
+  const win = dom.window;
+
+  const chromeMock = {
+    runtime: {
+      sendMessage: async (msg) => {
+        if (msg.action === "getHistory") return history;
+        return MOCK_RESULT;
+      },
+    },
+    tabs: {
+      query: async () => [{ url: "https://www.google.com", id: 1 }],
+      sendMessage: async () => null,
+      create: () => {},
+    },
+    storage: {
+      local: {
+        get: async () => ({}),
+        set: async () => {},
+      },
+    },
+  };
+
+  const sandbox = createContext({
+    document: win.document,
+    console,
+    chrome: chromeMock,
+    crypto: globalThis.crypto,
+    TextEncoder: win.TextEncoder || TextEncoder,
+    parseInt,
+    Math,
+    Object,
+    Array,
+    Date,
+    JSON,
+    Promise,
+    setTimeout: (...args) => win.setTimeout(...args),
+    clearTimeout: (...args) => win.clearTimeout(...args),
+  });
+
+  runInContext(POPUP_JS, sandbox);
+  return { window: sandbox, document: win.document };
+}
+
+describe("showHistory()", () => {
+  it("shows history-section and hides others", async () => {
+    const { window, document } = buildPopupContextWithHistory(MOCK_HISTORY);
+    await window.showHistory();
+    assert.ok(!document.getElementById("history-section").classList.contains("hidden"));
+    assert.ok(document.getElementById("results").classList.contains("hidden"));
+    assert.ok(document.getElementById("manual-paste").classList.contains("hidden"));
+  });
+
+  it("renders empty-state message when history is empty", async () => {
+    const { window, document } = buildPopupContextWithHistory([]);
+    await window.showHistory();
+    const empty = document.querySelector(".empty-state");
+    assert.ok(empty !== null, "empty-state element should exist");
+    assert.ok(empty.textContent.includes("No analyses yet"));
+  });
+
+  it("renders history items with score, title, company, date", async () => {
+    const { window, document } = buildPopupContextWithHistory(MOCK_HISTORY);
+    await window.showHistory();
+    const items = document.querySelectorAll(".history-item");
+    assert.strictEqual(items.length, 2);
+
+    // First item
+    assert.ok(items[0].querySelector(".history-score-circle").textContent === "25");
+    assert.ok(items[0].querySelector(".history-title").textContent === "Software Engineer");
+    assert.ok(items[0].querySelector(".history-company").textContent === "Acme Corp");
+  });
+
+  it("colors score circle green for score <= 30", async () => {
+    const { window, document } = buildPopupContextWithHistory(MOCK_HISTORY);
+    await window.showHistory();
+    const circles = document.querySelectorAll(".history-score-circle");
+    // Score 25 → green
+    const bg = circles[0].style.background;
+    assert.ok(
+      ["#16a34a", "rgb(22, 163, 74)"].includes(bg),
+      `Expected green, got ${bg}`
+    );
+  });
+
+  it("colors score circle red for score > 60", async () => {
+    const { window, document } = buildPopupContextWithHistory(MOCK_HISTORY);
+    await window.showHistory();
+    const circles = document.querySelectorAll(".history-score-circle");
+    // Score 75 → red
+    const bg = circles[1].style.background;
+    assert.ok(
+      ["#dc2626", "rgb(220, 38, 38)"].includes(bg),
+      `Expected red, got ${bg}`
+    );
+  });
+});
+
+describe("clearHistory()", () => {
+  it("sets empty array in storage and renders empty-state", async () => {
+    let storedHistory = null;
+    const dom = new JSDOM(POPUP_HTML, { runScripts: "outside-only" });
+    const win = dom.window;
+
+    const chromeMock = {
+      runtime: {
+        sendMessage: async (msg) => {
+          if (msg.action === "getHistory") return MOCK_HISTORY;
+          return MOCK_RESULT;
+        },
+      },
+      tabs: {
+        query: async () => [{ url: "https://www.google.com", id: 1 }],
+        sendMessage: async () => null,
+      },
+      storage: {
+        local: {
+          get: async () => ({}),
+          set: async (data) => { storedHistory = data; },
+        },
+      },
+    };
+
+    const sandbox = createContext({
+      document: win.document,
+      console,
+      chrome: chromeMock,
+      crypto: globalThis.crypto,
+      TextEncoder: win.TextEncoder || TextEncoder,
+      parseInt,
+      Math,
+      Object,
+      Array,
+      Date,
+      JSON,
+      Promise,
+      setTimeout: (...args) => win.setTimeout(...args),
+      clearTimeout: (...args) => win.clearTimeout(...args),
+    });
+
+    runInContext(POPUP_JS, sandbox);
+    await sandbox.clearHistory();
+
+    assert.ok(storedHistory !== null, "storage.set should have been called");
+    assert.ok(Array.isArray(storedHistory.history), "history should be an array");
+    assert.strictEqual(storedHistory.history.length, 0, "history should be empty");
+    const empty = win.document.querySelector(".empty-state");
+    assert.ok(empty !== null, "empty-state element should exist after clearing");
   });
 });
 

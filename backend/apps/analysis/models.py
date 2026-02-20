@@ -65,6 +65,12 @@ class UserFeedback(models.Model):
     class Meta:
         db_table = "user_feedback"
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["analysis", "device_hash"],
+                name="unique_feedback_per_device",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.feedback_type} for {self.analysis_id}"

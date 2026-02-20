@@ -3,14 +3,15 @@ import time
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.analysis.models import AnalyzedListing, APIUsageLog
-from apps.analysis.schemas import AnalyzeRequest
+from apps.analysis.models import AnalyzedListing, APIUsageLog, UserFeedback
+from apps.analysis.schemas import AnalyzeRequest, FeedbackRequest
 from apps.analysis.services.ai_analyzer import AnalysisUnavailableError, analyze_job_listing
 from apps.analysis.services.scoring import compute_ghost_score, score_to_recommendation
 from apps.common.decorators import validate_json_body
@@ -156,6 +157,44 @@ def analyze(request):
     )
 
     return JsonResponse(_format_response(listing, was_cached=False, count_today=count_today + 1))
+
+
+@csrf_exempt
+@require_POST
+@validate_json_body(FeedbackRequest)
+def submit_feedback(request):
+    """POST /api/v1/feedback/ — Submit user feedback on analysis accuracy.
+
+    HMAC validation handled by middleware upstream.
+    """
+    data: FeedbackRequest = request.validated_data
+
+    try:
+        listing = AnalyzedListing.objects.get(pk=data.analysis_id)
+    except (AnalyzedListing.DoesNotExist, ValueError, ValidationError):
+        return JsonResponse({"error": "Analysis not found"}, status=404)
+
+    try:
+        feedback = UserFeedback.objects.create(
+            analysis=listing,
+            feedback_type=data.feedback_type,
+            device_hash=data.device_fingerprint,
+        )
+    except IntegrityError:
+        return JsonResponse(
+            {"error": "duplicate", "message": "Feedback already recorded for this analysis."},
+            status=409,
+        )
+
+    return JsonResponse(
+        {
+            "feedback_id": str(feedback.pk),
+            "analysis_id": str(listing.pk),
+            "feedback_type": feedback.feedback_type,
+            "message": "Feedback recorded. Thank you!",
+        },
+        status=201,
+    )
 
 
 # ---------------------------------------------------------------------------

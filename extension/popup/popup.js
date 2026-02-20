@@ -2,12 +2,17 @@
  * Popup UI logic for HireCheck extension.
  */
 
+var currentAnalysisId = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   const togglePasteBtn = document.getElementById("toggle-paste");
   const pasteArea = document.getElementById("paste-area");
   const analyzePasteBtn = document.getElementById("analyze-paste");
   const retryBtn = document.getElementById("retry-btn");
   const analyzePageBtn = document.getElementById("analyze-page-btn");
+  const toggleHistoryBtn = document.getElementById("toggle-history");
+  const backFromHistoryBtn = document.getElementById("back-from-history");
+  const clearHistoryBtn = document.getElementById("clear-history");
 
   // Toggle manual paste area
   togglePasteBtn.addEventListener("click", () => {
@@ -19,6 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Analyze pasted job description
   analyzePasteBtn.addEventListener("click", () => {
+    if (analyzePasteBtn.disabled) return;
+
     const description = document.getElementById("job-description").value.trim();
     const jobTitle = document.getElementById("job-title-input").value.trim();
     const company = document.getElementById("company-input").value.trim();
@@ -96,6 +103,30 @@ document.addEventListener("DOMContentLoaded", () => {
     hideAllSections();
     document.getElementById("manual-paste").classList.remove("hidden");
     initPopup();
+  });
+
+  // History toggle
+  toggleHistoryBtn.addEventListener("click", () => {
+    showHistory();
+  });
+
+  // Back from history
+  backFromHistoryBtn.addEventListener("click", () => {
+    hideAllSections();
+    document.getElementById("manual-paste").classList.remove("hidden");
+    initPopup();
+  });
+
+  // Clear history
+  clearHistoryBtn.addEventListener("click", () => {
+    clearHistory();
+  });
+
+  // Feedback buttons
+  document.querySelectorAll(".btn-feedback").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      handleFeedbackClick(btn);
+    });
   });
 
   // Detect current tab and show appropriate UI
@@ -196,6 +227,9 @@ function showResults(data) {
 
   const resultsSection = document.getElementById("results");
   resultsSection.classList.remove("hidden");
+
+  // Track current analysis for feedback
+  currentAnalysisId = data.analysis_id || null;
 
   // Score value with color coding
   const scoreEl = document.getElementById("score-value");
@@ -310,8 +344,168 @@ function showResults(data) {
     usageEl.classList.add("hidden");
   }
 
+  // Feedback section — show if we have an analysis_id, reset button states
+  const feedbackSection = document.getElementById("feedback-section");
+  const feedbackToast = document.getElementById("feedback-toast");
+  if (currentAnalysisId) {
+    feedbackSection.classList.remove("hidden");
+    feedbackToast.classList.add("hidden");
+    feedbackToast.textContent = "";
+    feedbackToast.className = "feedback-toast hidden";
+    document.querySelectorAll(".btn-feedback").forEach((btn) => {
+      btn.disabled = false;
+      btn.classList.remove("selected");
+    });
+  } else {
+    feedbackSection.classList.add("hidden");
+  }
+
   // Keep manual paste visible for additional analyses
   document.getElementById("manual-paste").classList.remove("hidden");
+}
+
+/**
+ * Handle feedback button click.
+ * @param {HTMLElement} btn - The clicked feedback button
+ */
+async function handleFeedbackClick(btn) {
+  if (!currentAnalysisId) return;
+
+  const feedbackType = btn.getAttribute("data-type");
+
+  // Disable both buttons, highlight the clicked one
+  document.querySelectorAll(".btn-feedback").forEach((b) => {
+    b.disabled = true;
+  });
+  btn.classList.add("selected");
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "submitFeedback",
+      data: {
+        analysis_id: currentAnalysisId,
+        feedback_type: feedbackType,
+      },
+    });
+
+    const toast = document.getElementById("feedback-toast");
+    if (response && (response.success || response.feedback_id)) {
+      toast.textContent = "Thank you for your feedback!";
+      toast.className = "feedback-toast success";
+      toast.classList.remove("hidden");
+    } else {
+      toast.textContent = (response && response.error) || "Failed to submit feedback.";
+      toast.className = "feedback-toast error";
+      toast.classList.remove("hidden");
+      // Re-enable buttons on error
+      document.querySelectorAll(".btn-feedback").forEach((b) => {
+        b.disabled = false;
+      });
+      btn.classList.remove("selected");
+    }
+  } catch (error) {
+    const toast = document.getElementById("feedback-toast");
+    toast.textContent = "Failed to submit feedback.";
+    toast.className = "feedback-toast error";
+    toast.classList.remove("hidden");
+    document.querySelectorAll(".btn-feedback").forEach((b) => {
+      b.disabled = false;
+    });
+    btn.classList.remove("selected");
+  }
+}
+
+/**
+ * Show analysis history.
+ */
+async function showHistory() {
+  hideAllSections();
+  document.getElementById("history-section").classList.remove("hidden");
+
+  const historyList = document.getElementById("history-list");
+  historyList.innerHTML = "";
+
+  try {
+    const history = await chrome.runtime.sendMessage({ action: "getHistory" });
+
+    if (!history || history.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "No analyses yet.";
+      historyList.appendChild(empty);
+      return;
+    }
+
+    history.forEach((entry) => {
+      const item = document.createElement("div");
+      item.className = "history-item";
+
+      const circle = document.createElement("div");
+      circle.className = "history-score-circle";
+      circle.textContent = entry.ghost_score;
+      if (entry.ghost_score <= 30) {
+        circle.style.background = "#16a34a";
+      } else if (entry.ghost_score <= 60) {
+        circle.style.background = "#ca8a04";
+      } else {
+        circle.style.background = "#dc2626";
+      }
+
+      const info = document.createElement("div");
+      info.className = "history-info";
+
+      const title = document.createElement("div");
+      title.className = "history-title";
+      title.textContent = entry.job_title || "Untitled";
+
+      const company = document.createElement("div");
+      company.className = "history-company";
+      company.textContent = entry.company_name || "";
+
+      const date = document.createElement("div");
+      date.className = "history-date";
+      if (entry.analyzed_at) {
+        try {
+          date.textContent = new Date(entry.analyzed_at).toLocaleDateString();
+        } catch (e) {
+          date.textContent = "";
+        }
+      }
+
+      info.appendChild(title);
+      info.appendChild(company);
+      info.appendChild(date);
+
+      item.appendChild(circle);
+      item.appendChild(info);
+
+      if (entry.url) {
+        item.addEventListener("click", () => {
+          chrome.tabs.create({ url: entry.url });
+        });
+      }
+
+      historyList.appendChild(item);
+    });
+  } catch (error) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "Could not load history.";
+    historyList.appendChild(empty);
+  }
+}
+
+/**
+ * Clear all history entries.
+ */
+async function clearHistory() {
+  await chrome.storage.local.set({ history: [] });
+  const historyList = document.getElementById("history-list");
+  historyList.innerHTML = "";
+  const empty = document.createElement("div");
+  empty.className = "empty-state";
+  empty.textContent = "No analyses yet.";
+  historyList.appendChild(empty);
 }
 
 /**
@@ -365,6 +559,7 @@ function hideAllSections() {
     "manual-paste",
     "analyze-page-section",
     "rate-limit",
+    "history-section",
   ].forEach((id) => {
     document.getElementById(id).classList.add("hidden");
   });
